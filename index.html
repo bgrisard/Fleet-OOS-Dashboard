@@ -247,7 +247,7 @@ const DATA_MAX_DATE = new Date('2026-03-03');
 // Determine reference "today" — use actual today if within dataset, else use data max date
 const TODAY = new Date(); TODAY.setHours(0,0,0,0);
 const REF_DATE = TODAY <= DATA_MAX_DATE ? TODAY : DATA_MAX_DATE;
-const WINDOW_DAYS = 7; // vehicle counts as "current" if last OOS day is within 7 days of ref date
+const CUTOFF = new Date(REF_DATE); CUTOFF.setDate(CUTOFF.getDate() - 1); // today - 1 day
 
 function parseDate(s) { const [y,m,d] = s.split('-'); return new Date(y, m-1, d); }
 function daysBetween(a, b) { return Math.round((b - a) / 86400000); }
@@ -264,7 +264,7 @@ const CURRENT_OOS = VEHICLE_EVENTS
     const daysOOS = daysBetween(startDate, REF_DATE) + 1;
     return { ...v, endDate, startDate, daysAgo, daysOOS };
   })
-  .filter(v => v.daysAgo >= 0 && v.daysAgo <= WINDOW_DAYS)
+  .filter(v => v.endDate >= CUTOFF)
   .sort((a, b) => b.daysOOS - a.daysOOS);
 
 const FC  = {ALL:'#374151',LOCAL:'#E53E3E',MED:'#2563EB',MINI:'#10B981',OTR:'#F59E0B'};
@@ -296,7 +296,6 @@ if (CURRENT_OOS.length === 0) {
         <tr>
           <th>Vehicle</th>
           <th>Fleet</th>
-          <th>Type</th>
           <th>OOS Since</th>
           <th>Last Seen</th>
           <th style="text-align:right">Days OOS</th>
@@ -309,11 +308,9 @@ if (CURRENT_OOS.length === 0) {
           const sev = getSeverityClass(v.daysOOS);
           const pct = Math.round((v.daysOOS / maxDays) * 100);
           const fleetColor = FC[v.fleet] || '#374151';
-          const catLabel = v.category === 'BSAccident' ? 'Accident' : 'Mechanical';
           return `<tr class="oos-row ${sev.row}">
             <td><span class="oos-vehicle-id">#${v.id}</span></td>
             <td><span class="fleet-chip" style="background:${fleetColor}18;color:${fleetColor};border:1px solid ${fleetColor}30">${v.fleet}</span></td>
-            <td><span class="type-chip">${catLabel}</span></td>
             <td>${fmtDate(v.start)}</td>
             <td class="muted-cell">${fmtDate(v.end)}</td>
             <td style="text-align:right"><strong>${v.daysOOS}</strong></td>
