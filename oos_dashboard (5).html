@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fleet OOS Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:      #F0F4FF;
+  --surface: #FFFFFF;
+  --border:  #E2E8F8;
+  --bdark:   #C8D0EC;
+  --text:    #1A1F3C;
+  --muted:   #6B7280;
+  --light:   #E8ECFB;
+
+  --local:  #E53E3E;  --local-l: #FFF5F5;  --local-m: #FC8181;
+  --med:    #1B3A6B;  --med-l:   #EEF3FA;  --med-m:   #7BAFD4;
+  --mini:   #10B981;  --mini-l:  #ECFDF5;  --mini-m:  #6EE7B7;
+  --otr:    #F59E0B;  --otr-l:   #FFFBEB;  --otr-m:   #FCD34D;
+  --all:    #1B3A6B;  --all-l:   #EEF3FA;  --all-m:   #7BAFD4;
+
+  --y2024:  #1B3A6B;
+  --y2025:  #06B6D4;
+  --y2026:  #F97316;
+  --yall:   #0F2549;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:13px}
+
+/* HEADER */
+header{background:linear-gradient(135deg,#060F1E 0%,#0F2549 50%,#1B3A6B 100%);padding:32px 52px 28px;display:flex;align-items:flex-end;justify-content:space-between}
+.htitle{font-size:28px;font-weight:700;letter-spacing:-.5px;line-height:1.1;color:#fff}
+.htitle span{color:#7BAFD4;font-weight:300}
+.hsub{font-size:11px;color:#5B8DB8;margin-top:7px;letter-spacing:.03em}
+.hmeta{text-align:right;font-size:11px;color:#1B3A6B;line-height:2}
+.hmeta strong{color:#7BAFD4}
+
+main{max-width:1360px;margin:0 auto;padding:32px 52px}
+
+/* FILTERS */
+.filters{display:flex;align-items:center;gap:0;margin-bottom:28px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:6px;box-shadow:0 1px 4px rgba(99,102,241,.08)}
+.filter-group{display:flex;align-items:center;gap:4px;padding:0 12px}
+.filter-group+.filter-group{border-left:1px solid var(--border)}
+.flabel{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-right:8px;font-weight:600;white-space:nowrap}
+.fbtn{font-family:'DM Mono',monospace;font-size:11px;font-weight:500;letter-spacing:.03em;text-transform:uppercase;padding:6px 14px;border:none;background:transparent;color:var(--muted);cursor:pointer;border-radius:7px;transition:all .15s}
+.fbtn:hover{background:var(--light);color:var(--text)}
+.fbtn.active{font-weight:600;color:#fff}
+.fbtn.active[data-fleet="ALL"]  {background:var(--all)}
+.fbtn.active[data-fleet="LOCAL"]{background:var(--local)}
+.fbtn.active[data-fleet="MED"]  {background:var(--med)}
+.fbtn.active[data-fleet="MINI"] {background:var(--mini)}
+.fbtn.active[data-fleet="OTR"]  {background:var(--otr)}
+.fbtn.active[data-year="ALL"] {background:var(--yall)}
+.fbtn.active[data-year="2024"]{background:var(--y2024)}
+.fbtn.active[data-year="2025"]{background:var(--y2025)}
+.fbtn.active[data-year="2026"]{background:var(--y2026)}
+
+/* KPI CARDS */
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px}
+.kc{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px 16px;position:relative;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);transition:box-shadow .2s}
+.kc:hover{box-shadow:0 4px 16px rgba(99,102,241,.12)}
+.kc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:12px 12px 0 0;background:var(--accent,#1B3A6B)}
+.kc.ttm{background:linear-gradient(135deg,#F0F7FF 0%,#EEF3FA 100%)}
+.kc.ttm::before{background:linear-gradient(90deg,#5B8DB8,#7BAFD4)}
+.ktag{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:6px;font-weight:600}
+.tbadge{font-size:8px;padding:2px 6px;background:#1B3A6B;color:#fff;border-radius:20px;letter-spacing:.04em}
+.kval{font-family:'DM Mono',monospace;font-size:32px;font-weight:500;line-height:1;color:var(--text);transition:color .2s}
+.ksub{font-size:10px;color:var(--muted);margin-top:6px}
+
+/* CURRENT OOS SECTION */
+.oos-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px 26px 20px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.oos-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.oos-title{font-size:15px;font-weight:700;color:var(--text)}
+.oos-meta{font-size:10px;color:var(--muted);letter-spacing:.04em;font-weight:500}
+.oos-pulse{display:inline-block;width:8px;height:8px;background:#EF4444;border-radius:50%;margin-right:8px;box-shadow:0 0 0 0 rgba(239,68,68,.4);animation:pulse 1.5s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(239,68,68,.45)}70%{box-shadow:0 0 0 8px rgba(239,68,68,0)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}
+.oos-none{text-align:center;padding:32px;color:var(--muted)}
+
+/* OOS TABLE */
+.oos-table{width:100%;border-collapse:collapse;font-size:12px}
+.oos-table thead th{padding:8px 12px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#fff;background:#374151;font-weight:700;white-space:nowrap}
+.oos-table thead th:first-child{border-radius:8px 0 0 8px}
+.oos-table thead th:last-child{border-radius:0 8px 8px 0}
+.oos-table tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+.oos-table tbody tr:last-child{border-bottom:none}
+.oos-table tbody tr:hover{background:#F5F7FF}
+.oos-table td{padding:10px 12px;white-space:nowrap;vertical-align:middle}
+.oos-vehicle-id{font-family:'DM Mono',monospace;font-weight:600;font-size:13px;color:var(--text)}
+.fleet-chip{display:inline-block;padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.type-chip{display:inline-block;padding:2px 8px;border-radius:20px;font-size:9px;font-weight:600;background:#F1F5F9;color:#475569;border:1px solid #E2E8F0}
+.muted-cell{color:var(--muted);font-size:11px}
+.oos-bar-wrap{background:#F1F5F9;border-radius:20px;height:7px;overflow:hidden;min-width:80px}
+.oos-bar-fill{height:100%;border-radius:20px;transition:width .5s ease}
+.sev-high-bar{background:linear-gradient(90deg,#EF4444,#F87171)}
+.sev-med-bar {background:linear-gradient(90deg,#F59E0B,#FCD34D)}
+.sev-low-bar {background:linear-gradient(90deg,#10B981,#6EE7B7)}
+.sev-badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.badge-high{background:#FEE2E2;color:#991B1B}
+.badge-med {background:#FEF3C7;color:#92400E}
+.badge-low {background:#D1FAE5;color:#065F46}
+
+/* CHARTS */
+.cgrid{display:grid;grid-template-columns:1fr;gap:16px;margin-bottom:20px}
+.cc{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px 26px 18px;box-shadow:0 1px 3px rgba(0,0,0,.06);position:relative;overflow:hidden}
+.cc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:12px 12px 0 0;background:var(--chart-accent,#1B3A6B)}
+.ch{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:18px}
+.ct{font-size:14px;font-weight:700;color:var(--text)}
+.cn{font-size:10px;color:var(--muted);letter-spacing:.04em}
+.cw{position:relative;height:220px}
+.cw.tall{height:260px}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+
+/* TABLE */
+.tsec{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.ttop{display:flex;align-items:center;justify-content:space-between;padding:18px 26px 14px;border-bottom:2px solid var(--text)}
+.ttl{font-size:15px;font-weight:700}
+.tsub{font-size:10px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;font-weight:600}
+.tscroll{overflow-x:auto;max-height:420px;overflow-y:auto}
+table{width:100%;border-collapse:collapse}
+thead th{padding:9px 16px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;white-space:nowrap;font-weight:700;background:#374151}
+thead th:not(:first-child){text-align:right}
+thead th.tc{opacity:.85}
+tbody tr{border-bottom:1px solid var(--border);transition:background .08s}
+tbody tr:hover{background:#F5F7FF}
+tbody td{padding:9px 16px;font-size:12px;white-space:nowrap}
+tbody td:not(:first-child){text-align:right;font-family:'DM Mono',monospace}
+.dm{color:var(--muted);font-size:11px}
+.dn{color:var(--text)}
+.dt{color:var(--muted);font-size:11px}
+.yr td{font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;padding:6px 16px;border-bottom:1px solid var(--border)}
+tfoot tr{border-top:2px solid var(--text)}
+tfoot td{padding:11px 16px;font-size:12px;font-weight:700;background:var(--light);white-space:nowrap;font-family:'DM Mono',monospace}
+tfoot td:not(:first-child){text-align:right}
+tfoot td:first-child{font-family:'Inter',sans-serif}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--light)}
+::-webkit-scrollbar-thumb{background:var(--bdark);border-radius:4px}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="htitle">Fleet Out-of-Service <span>Report</span></div>
+    <div class="hsub">Jan 2024 – Feb 2026 &nbsp;·&nbsp; OOS &amp; BSAccident &nbsp;·&nbsp; Excl. RTA &amp; OTHER</div>
+  </div>
+  <div class="hmeta">
+    <div>Fleets: <strong>LOCAL · MED · MINI · OTR</strong></div>
+    <div>TTM = trailing 12-month rolling sum / avg</div>
+  </div>
+</header>
+
+<main>
+  <!-- FILTERS -->
+  <div class="filters">
+    <div class="filter-group">
+      <span class="flabel">Fleet</span>
+      <button class="fbtn active" data-fleet="ALL">All</button>
+      <button class="fbtn" data-fleet="LOCAL">Local</button>
+      <button class="fbtn" data-fleet="MED">Med</button>
+      <button class="fbtn" data-fleet="MINI">Mini</button>
+      <button class="fbtn" data-fleet="OTR">OTR</button>
+    </div>
+    <div class="filter-group">
+      <span class="flabel">Year</span>
+      <button class="fbtn active" data-year="ALL">All Years</button>
+      <button class="fbtn" data-year="2024">2024</button>
+      <button class="fbtn" data-year="2025">2025</button>
+      <button class="fbtn" data-year="2026">2026</button>
+    </div>
+  </div>
+
+  <!-- CURRENT OOS -->
+  <div class="oos-section">
+    <div class="oos-header">
+      <div class="oos-title"><span class="oos-pulse"></span>Currently Out of Service</div>
+      <div class="oos-meta" id="oos-ref-date"></div>
+    </div>
+    <div id="oos-grid"></div>
+  </div>
+
+  <!-- KPI CARDS -->
+  <div class="kpi-row">
+    <div class="kc" id="kc1"><div class="ktag">Total OOS Days</div><div class="kval" id="kd">—</div><div class="ksub">period total</div></div>
+    <div class="kc" id="kc2"><div class="ktag">Total OOS Events</div><div class="kval" id="ke">—</div><div class="ksub">consecutive-day runs</div></div>
+    <div class="kc" id="kc3"><div class="ktag">Avg Event Duration</div><div class="kval" id="ku">—</div><div class="ksub">days per event</div></div>
+    <div class="kc ttm" id="kc4"><div class="ktag">TTM OOS Days <span class="tbadge">T12M</span></div><div class="kval" id="ktd">—</div><div class="ksub">as of latest month</div></div>
+    <div class="kc ttm" id="kc5"><div class="ktag">TTM OOS Events <span class="tbadge">T12M</span></div><div class="kval" id="kte">—</div><div class="ksub">as of latest month</div></div>
+    <div class="kc ttm" id="kc6"><div class="ktag">TTM Avg Duration <span class="tbadge">T12M</span></div><div class="kval" id="ktu">—</div><div class="ksub">days per event</div></div>
+  </div>
+
+  <!-- MAIN COMBO CHART -->
+  <div class="cgrid">
+    <div class="cc" id="chart-card-cu">
+      <div class="ch"><div class="ct">Avg Event Duration by Month</div><div class="cn">monthly avg (bars) · TTM avg (line, right axis)</div></div>
+      <div class="cw tall"><canvas id="cu"></canvas></div>
+    </div>
+  </div>
+
+  <!-- YOY CHARTS -->
+  <div class="charts-row">
+    <div class="cc" id="chart-card-yoy-dur">
+      <div class="ch"><div class="ct">Monthly Avg Duration — Year over Year</div><div class="cn">Jan–Dec x-axis · one line per year</div></div>
+      <div class="cw"><canvas id="yoy-dur"></canvas></div>
+    </div>
+    <div class="cc" id="chart-card-yoy-ttm">
+      <div class="ch"><div class="ct">TTM Avg Duration — Year over Year</div><div class="cn">trailing 12-month avg · one line per year</div></div>
+      <div class="cw"><canvas id="yoy-ttm"></canvas></div>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="tsec">
+    <div class="ttop">
+      <div class="ttl">Monthly Detail</div>
+      <div class="tsub" id="tlbl">All Fleets · All Years</div>
+    </div>
+    <div class="tscroll">
+      <table>
+        <thead id="thead-row">
+          <tr>
+            <th>Month</th><th>OOS Days</th><th>OOS Events</th><th>Avg Duration</th>
+            <th class="tc">TTM Days</th><th class="tc">TTM Events</th><th class="tc">TTM Avg Dur</th>
+          </tr>
+        </thead>
+        <tbody id="tb"></tbody>
+        <tfoot>
+          <tr>
+            <td>Total / Average</td>
+            <td id="fd">—</td><td id="fe">—</td><td id="fu2">—</td>
+            <td id="ftd">—</td><td id="fte">—</td><td id="ftu">—</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+// ── Vehicle OOS history (latest event per vehicle) ───────────────────
+const VEHICLE_EVENTS = [{"id":"6166","fleet":"LOCAL","category":"OOS","start":"2026-02-02","end":"2026-03-03"},{"id":"18231","fleet":"MED","category":"OOS","start":"2026-02-24","end":"2026-02-27"},{"id":"25240","fleet":"OTR","category":"BSAccident","start":"2026-02-19","end":"2026-02-27"},{"id":"18213","fleet":"MED","category":"OOS","start":"2026-02-20","end":"2026-02-22"},{"id":"18210","fleet":"MED","category":"OOS","start":"2026-01-21","end":"2026-02-18"},{"id":"19217","fleet":"OTR","category":"OOS","start":"2026-02-16","end":"2026-02-18"},{"id":"19218","fleet":"OTR","category":"OOS","start":"2026-02-13","end":"2026-02-17"},{"id":"26244","fleet":"OTR","category":"OOS","start":"2026-02-14","end":"2026-02-16"},{"id":"25233","fleet":"OTR","category":"OOS","start":"2026-02-09","end":"2026-02-11"},{"id":"18211","fleet":"MED","category":"OOS","start":"2026-02-05","end":"2026-02-05"},{"id":"6151","fleet":"LOCAL","category":"OOS","start":"2026-01-16","end":"2026-01-21"},{"id":"19214","fleet":"OTR","category":"OOS","start":"2026-01-19","end":"2026-01-21"},{"id":"16157","fleet":"MED","category":"OOS","start":"2026-01-16","end":"2026-01-19"},{"id":"11219","fleet":"LOCAL","category":"OOS","start":"2026-01-01","end":"2026-01-16"},{"id":"25239","fleet":"OTR","category":"BSAccident","start":"2026-01-12","end":"2026-01-15"},{"id":"16158","fleet":"MED","category":"OOS","start":"2026-01-05","end":"2026-01-09"},{"id":"17319","fleet":"MINI","category":"OOS","start":"2025-12-15","end":"2026-01-07"},{"id":"24230","fleet":"OTR","category":"OOS","start":"2025-12-30","end":"2026-01-07"},{"id":"25237","fleet":"OTR","category":"OOS","start":"2026-01-05","end":"2026-01-05"},{"id":"16155","fleet":"MED","category":"OOS","start":"2025-12-29","end":"2026-01-02"},{"id":"17204","fleet":"MED","category":"OOS","start":"2025-12-29","end":"2026-01-02"},{"id":"8145","fleet":"LOCAL","category":"OOS","start":"2025-12-08","end":"2025-12-12"},{"id":"17209","fleet":"MED","category":"OOS","start":"2025-12-09","end":"2025-12-12"},{"id":"17201","fleet":"MED","category":"OOS","start":"2025-11-15","end":"2025-12-05"},{"id":"16154","fleet":"MED","category":"BSAccident","start":"2025-11-24","end":"2025-11-25"},{"id":"6153","fleet":"LOCAL","category":"OOS","start":"2025-11-24","end":"2025-11-24"},{"id":"16156","fleet":"MED","category":"OOS","start":"2025-11-17","end":"2025-11-24"},{"id":"19215","fleet":"OTR","category":"OOS","start":"2025-11-18","end":"2025-11-19"},{"id":"24229","fleet":"OTR","category":"BSAccident","start":"2025-11-07","end":"2025-11-13"},{"id":"9146","fleet":"LOCAL","category":"OOS","start":"2025-11-06","end":"2025-11-12"}];
+
+const DATA_MAX_DATE = new Date('2026-03-03');
+
+// Determine reference "today" — use actual today if within dataset, else use data max date
+const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+const REF_DATE = TODAY <= DATA_MAX_DATE ? TODAY : DATA_MAX_DATE;
+const WINDOW_DAYS = 7; // vehicle counts as "current" if last OOS day is within 7 days of ref date
+
+function parseDate(s) { const [y,m,d] = s.split('-'); return new Date(y, m-1, d); }
+function daysBetween(a, b) { return Math.round((b - a) / 86400000); }
+function fmtDate(s) {
+  const d = parseDate(s);
+  return d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+}
+
+const CURRENT_OOS = VEHICLE_EVENTS
+  .map(v => {
+    const endDate = parseDate(v.end);
+    const startDate = parseDate(v.start);
+    const daysAgo = daysBetween(endDate, REF_DATE);
+    const daysOOS = daysBetween(startDate, REF_DATE) + 1;
+    return { ...v, endDate, startDate, daysAgo, daysOOS };
+  })
+  .filter(v => v.daysAgo >= 0 && v.daysAgo <= WINDOW_DAYS)
+  .sort((a, b) => b.daysOOS - a.daysOOS);
+
+const FC  = {ALL:'#1B3A6B',LOCAL:'#E53E3E',MED:'#2980B9',MINI:'#10B981',OTR:'#F59E0B'};
+const FBG = {ALL:'#EEF3FA',LOCAL:'#FFF5F5',MED:'#EBF5FB',MINI:'#ECFDF5',OTR:'#FFFBEB'};
+const FMD = {ALL:'#7BAFD4',LOCAL:'#FC8181',MED:'#85C1E9',MINI:'#6EE7B7',OTR:'#FCD34D'};
+const FN  = {ALL:'All Fleets',LOCAL:'Local',MED:'Med',MINI:'Mini',OTR:'OTR'};
+const YC  = {ALL:'#0F2549','2024':'#1B3A6B','2025':'#06B6D4','2026':'#F97316'};
+
+const RAW={"fleets":["LOCAL","MED","MINI","OTR"],"data":{"LOCAL":[{"ym":"2023-06","label":"Jun 2023","oos_days":58,"events":11,"avg_dur":5.27,"ttm_days":58,"ttm_events":11,"ttm_avg_dur":5.27},{"ym":"2023-07","label":"Jul 2023","oos_days":131,"events":10,"avg_dur":13.1,"ttm_days":189,"ttm_events":21,"ttm_avg_dur":9.0},{"ym":"2023-08","label":"Aug 2023","oos_days":71,"events":9,"avg_dur":7.89,"ttm_days":260,"ttm_events":30,"ttm_avg_dur":8.67},{"ym":"2023-09","label":"Sep 2023","oos_days":34,"events":6,"avg_dur":5.67,"ttm_days":294,"ttm_events":36,"ttm_avg_dur":8.17},{"ym":"2023-10","label":"Oct 2023","oos_days":37,"events":10,"avg_dur":3.7,"ttm_days":331,"ttm_events":46,"ttm_avg_dur":7.2},{"ym":"2023-11","label":"Nov 2023","oos_days":75,"events":7,"avg_dur":10.71,"ttm_days":406,"ttm_events":53,"ttm_avg_dur":7.66},{"ym":"2023-12","label":"Dec 2023","oos_days":34,"events":10,"avg_dur":3.4,"ttm_days":440,"ttm_events":63,"ttm_avg_dur":6.98},{"ym":"2024-01","label":"Jan 2024","oos_days":34,"events":6,"avg_dur":5.67,"ttm_days":474,"ttm_events":69,"ttm_avg_dur":6.87},{"ym":"2024-02","label":"Feb 2024","oos_days":36,"events":7,"avg_dur":5.14,"ttm_days":510,"ttm_events":76,"ttm_avg_dur":6.71},{"ym":"2024-03","label":"Mar 2024","oos_days":22,"events":13,"avg_dur":1.69,"ttm_days":532,"ttm_events":89,"ttm_avg_dur":5.98},{"ym":"2024-04","label":"Apr 2024","oos_days":22,"events":7,"avg_dur":3.14,"ttm_days":554,"ttm_events":96,"ttm_avg_dur":5.77},{"ym":"2024-05","label":"May 2024","oos_days":32,"events":12,"avg_dur":2.67,"ttm_days":586,"ttm_events":108,"ttm_avg_dur":5.43},{"ym":"2024-06","label":"Jun 2024","oos_days":13,"events":6,"avg_dur":2.17,"ttm_days":541,"ttm_events":103,"ttm_avg_dur":5.25},{"ym":"2024-07","label":"Jul 2024","oos_days":31,"events":5,"avg_dur":6.2,"ttm_days":441,"ttm_events":98,"ttm_avg_dur":4.5},{"ym":"2024-08","label":"Aug 2024","oos_days":16,"events":7,"avg_dur":2.29,"ttm_days":386,"ttm_events":96,"ttm_avg_dur":4.02},{"ym":"2024-09","label":"Sep 2024","oos_days":20,"events":6,"avg_dur":3.33,"ttm_days":372,"ttm_events":96,"ttm_avg_dur":3.88},{"ym":"2024-10","label":"Oct 2024","oos_days":15,"events":4,"avg_dur":3.75,"ttm_days":350,"ttm_events":90,"ttm_avg_dur":3.89},{"ym":"2024-11","label":"Nov 2024","oos_days":10,"events":3,"avg_dur":3.33,"ttm_days":285,"ttm_events":86,"ttm_avg_dur":3.31},{"ym":"2024-12","label":"Dec 2024","oos_days":4,"events":1,"avg_dur":4.0,"ttm_days":255,"ttm_events":77,"ttm_avg_dur":3.31},{"ym":"2025-02","label":"Feb 2025","oos_days":17,"events":6,"avg_dur":2.83,"ttm_days":238,"ttm_events":77,"ttm_avg_dur":3.09},{"ym":"2025-03","label":"Mar 2025","oos_days":8,"events":2,"avg_dur":4.0,"ttm_days":210,"ttm_events":72,"ttm_avg_dur":2.92},{"ym":"2025-04","label":"Apr 2025","oos_days":6,"events":2,"avg_dur":3.0,"ttm_days":194,"ttm_events":61,"ttm_avg_dur":3.18},{"ym":"2025-05","label":"May 2025","oos_days":16,"events":2,"avg_dur":8.0,"ttm_days":188,"ttm_events":56,"ttm_avg_dur":3.36},{"ym":"2025-06","label":"Jun 2025","oos_days":41,"events":11,"avg_dur":3.73,"ttm_days":197,"ttm_events":55,"ttm_avg_dur":3.58},{"ym":"2025-07","label":"Jul 2025","oos_days":42,"events":6,"avg_dur":7.0,"ttm_days":226,"ttm_events":55,"ttm_avg_dur":4.11},{"ym":"2025-08","label":"Aug 2025","oos_days":35,"events":4,"avg_dur":8.75,"ttm_days":230,"ttm_events":54,"ttm_avg_dur":4.26},{"ym":"2025-09","label":"Sep 2025","oos_days":45,"events":11,"avg_dur":4.09,"ttm_days":259,"ttm_events":58,"ttm_avg_dur":4.47},{"ym":"2025-10","label":"Oct 2025","oos_days":16,"events":2,"avg_dur":8.0,"ttm_days":255,"ttm_events":54,"ttm_avg_dur":4.72},{"ym":"2025-11","label":"Nov 2025","oos_days":19,"events":5,"avg_dur":3.8,"ttm_days":259,"ttm_events":55,"ttm_avg_dur":4.71},{"ym":"2025-12","label":"Dec 2025","oos_days":13,"events":2,"avg_dur":6.5,"ttm_days":262,"ttm_events":54,"ttm_avg_dur":4.85},{"ym":"2026-01","label":"Jan 2026","oos_days":22,"events":2,"avg_dur":11.0,"ttm_days":280,"ttm_events":55,"ttm_avg_dur":5.09},{"ym":"2026-02","label":"Feb 2026","oos_days":27,"events":1,"avg_dur":27.0,"ttm_days":290,"ttm_events":50,"ttm_avg_dur":5.8}],"MED":[{"ym":"2023-06","label":"Jun 2023","oos_days":48,"events":9,"avg_dur":5.33,"ttm_days":48,"ttm_events":9,"ttm_avg_dur":5.33},{"ym":"2023-07","label":"Jul 2023","oos_days":76,"events":10,"avg_dur":7.6,"ttm_days":124,"ttm_events":19,"ttm_avg_dur":6.53},{"ym":"2023-08","label":"Aug 2023","oos_days":44,"events":9,"avg_dur":4.89,"ttm_days":168,"ttm_events":28,"ttm_avg_dur":6.0},{"ym":"2023-09","label":"Sep 2023","oos_days":16,"events":5,"avg_dur":3.2,"ttm_days":184,"ttm_events":33,"ttm_avg_dur":5.58},{"ym":"2023-10","label":"Oct 2023","oos_days":38,"events":13,"avg_dur":2.92,"ttm_days":222,"ttm_events":46,"ttm_avg_dur":4.83},{"ym":"2023-11","label":"Nov 2023","oos_days":23,"events":9,"avg_dur":2.56,"ttm_days":245,"ttm_events":55,"ttm_avg_dur":4.45},{"ym":"2023-12","label":"Dec 2023","oos_days":23,"events":11,"avg_dur":2.09,"ttm_days":268,"ttm_events":66,"ttm_avg_dur":4.06},{"ym":"2024-01","label":"Jan 2024","oos_days":44,"events":10,"avg_dur":4.4,"ttm_days":312,"ttm_events":76,"ttm_avg_dur":4.11},{"ym":"2024-02","label":"Feb 2024","oos_days":67,"events":12,"avg_dur":5.58,"ttm_days":379,"ttm_events":88,"ttm_avg_dur":4.31},{"ym":"2024-03","label":"Mar 2024","oos_days":25,"events":11,"avg_dur":2.27,"ttm_days":404,"ttm_events":99,"ttm_avg_dur":4.08},{"ym":"2024-04","label":"Apr 2024","oos_days":23,"events":13,"avg_dur":1.77,"ttm_days":427,"ttm_events":112,"ttm_avg_dur":3.81},{"ym":"2024-05","label":"May 2024","oos_days":31,"events":11,"avg_dur":2.82,"ttm_days":458,"ttm_events":123,"ttm_avg_dur":3.72},{"ym":"2024-06","label":"Jun 2024","oos_days":49,"events":17,"avg_dur":2.88,"ttm_days":459,"ttm_events":131,"ttm_avg_dur":3.5},{"ym":"2024-07","label":"Jul 2024","oos_days":94,"events":11,"avg_dur":8.55,"ttm_days":477,"ttm_events":132,"ttm_avg_dur":3.61},{"ym":"2024-08","label":"Aug 2024","oos_days":26,"events":12,"avg_dur":2.17,"ttm_days":459,"ttm_events":135,"ttm_avg_dur":3.4},{"ym":"2024-09","label":"Sep 2024","oos_days":23,"events":12,"avg_dur":1.92,"ttm_days":466,"ttm_events":142,"ttm_avg_dur":3.28},{"ym":"2024-10","label":"Oct 2024","oos_days":42,"events":13,"avg_dur":3.23,"ttm_days":470,"ttm_events":142,"ttm_avg_dur":3.31},{"ym":"2024-11","label":"Nov 2024","oos_days":51,"events":9,"avg_dur":5.67,"ttm_days":498,"ttm_events":142,"ttm_avg_dur":3.51},{"ym":"2024-12","label":"Dec 2024","oos_days":24,"events":6,"avg_dur":4.0,"ttm_days":499,"ttm_events":137,"ttm_avg_dur":3.64},{"ym":"2025-01","label":"Jan 2025","oos_days":46,"events":6,"avg_dur":7.67,"ttm_days":501,"ttm_events":133,"ttm_avg_dur":3.77},{"ym":"2025-02","label":"Feb 2025","oos_days":35,"events":9,"avg_dur":3.89,"ttm_days":469,"ttm_events":130,"ttm_avg_dur":3.61},{"ym":"2025-03","label":"Mar 2025","oos_days":28,"events":11,"avg_dur":2.55,"ttm_days":472,"ttm_events":130,"ttm_avg_dur":3.63},{"ym":"2025-04","label":"Apr 2025","oos_days":23,"events":14,"avg_dur":1.64,"ttm_days":472,"ttm_events":131,"ttm_avg_dur":3.6},{"ym":"2025-06","label":"Jun 2025","oos_days":35,"events":7,"avg_dur":5.0,"ttm_days":476,"ttm_events":127,"ttm_avg_dur":3.75},{"ym":"2025-07","label":"Jul 2025","oos_days":54,"events":5,"avg_dur":10.8,"ttm_days":481,"ttm_events":115,"ttm_avg_dur":4.18},{"ym":"2025-08","label":"Aug 2025","oos_days":50,"events":10,"avg_dur":5.0,"ttm_days":437,"ttm_events":114,"ttm_avg_dur":3.83},{"ym":"2025-09","label":"Sep 2025","oos_days":68,"events":14,"avg_dur":4.86,"ttm_days":479,"ttm_events":116,"ttm_avg_dur":4.13},{"ym":"2025-10","label":"Oct 2025","oos_days":18,"events":7,"avg_dur":2.57,"ttm_days":474,"ttm_events":111,"ttm_avg_dur":4.27},{"ym":"2025-11","label":"Nov 2025","oos_days":40,"events":8,"avg_dur":5.0,"ttm_days":472,"ttm_events":106,"ttm_avg_dur":4.45},{"ym":"2025-12","label":"Dec 2025","oos_days":25,"events":4,"avg_dur":6.25,"ttm_days":446,"ttm_events":101,"ttm_avg_dur":4.42},{"ym":"2026-01","label":"Jan 2026","oos_days":34,"events":6,"avg_dur":5.67,"ttm_days":456,"ttm_events":101,"ttm_avg_dur":4.51},{"ym":"2026-02","label":"Feb 2026","oos_days":46,"events":3,"avg_dur":15.33,"ttm_days":456,"ttm_events":98,"ttm_avg_dur":4.65}],"MINI":[{"ym":"2023-10","label":"Oct 2023","oos_days":1,"events":1,"avg_dur":1.0,"ttm_days":1,"ttm_events":1,"ttm_avg_dur":1.0},{"ym":"2023-11","label":"Nov 2023","oos_days":4,"events":1,"avg_dur":4.0,"ttm_days":5,"ttm_events":2,"ttm_avg_dur":2.5},{"ym":"2023-12","label":"Dec 2023","oos_days":1,"events":1,"avg_dur":1.0,"ttm_days":6,"ttm_events":3,"ttm_avg_dur":2.0},{"ym":"2024-01","label":"Jan 2024","oos_days":3,"events":1,"avg_dur":3.0,"ttm_days":9,"ttm_events":4,"ttm_avg_dur":2.25},{"ym":"2024-02","label":"Feb 2024","oos_days":2,"events":1,"avg_dur":2.0,"ttm_days":11,"ttm_events":5,"ttm_avg_dur":2.2},{"ym":"2024-03","label":"Mar 2024","oos_days":2,"events":1,"avg_dur":2.0,"ttm_days":13,"ttm_events":6,"ttm_avg_dur":2.17},{"ym":"2024-04","label":"Apr 2024","oos_days":2,"events":1,"avg_dur":2.0,"ttm_days":15,"ttm_events":7,"ttm_avg_dur":2.14},{"ym":"2024-05","label":"May 2024","oos_days":2,"events":2,"avg_dur":1.0,"ttm_days":17,"ttm_events":9,"ttm_avg_dur":1.89},{"ym":"2024-06","label":"Jun 2024","oos_days":5,"events":3,"avg_dur":1.67,"ttm_days":22,"ttm_events":12,"ttm_avg_dur":1.83},{"ym":"2024-08","label":"Aug 2024","oos_days":3,"events":1,"avg_dur":3.0,"ttm_days":25,"ttm_events":13,"ttm_avg_dur":1.92},{"ym":"2024-09","label":"Sep 2024","oos_days":5,"events":2,"avg_dur":2.5,"ttm_days":30,"ttm_events":15,"ttm_avg_dur":2.0},{"ym":"2024-10","label":"Oct 2024","oos_days":8,"events":4,"avg_dur":2.0,"ttm_days":38,"ttm_events":19,"ttm_avg_dur":2.0},{"ym":"2024-11","label":"Nov 2024","oos_days":2,"events":1,"avg_dur":2.0,"ttm_days":39,"ttm_events":19,"ttm_avg_dur":2.05},{"ym":"2025-07","label":"Jul 2025","oos_days":3,"events":2,"avg_dur":1.5,"ttm_days":38,"ttm_events":20,"ttm_avg_dur":1.9},{"ym":"2025-09","label":"Sep 2025","oos_days":1,"events":1,"avg_dur":1.0,"ttm_days":38,"ttm_events":20,"ttm_avg_dur":1.9},{"ym":"2025-10","label":"Oct 2025","oos_days":2,"events":0,"avg_dur":0,"ttm_days":37,"ttm_events":19,"ttm_avg_dur":1.95},{"ym":"2025-12","label":"Dec 2025","oos_days":17,"events":1,"avg_dur":17.0,"ttm_days":52,"ttm_events":19,"ttm_avg_dur":2.74},{"ym":"2026-01","label":"Jan 2026","oos_days":7,"events":0,"avg_dur":0,"ttm_days":57,"ttm_events":18,"ttm_avg_dur":3.17}],"OTR":[{"ym":"2023-06","label":"Jun 2023","oos_days":5,"events":2,"avg_dur":2.5,"ttm_days":5,"ttm_events":2,"ttm_avg_dur":2.5},{"ym":"2023-07","label":"Jul 2023","oos_days":22,"events":4,"avg_dur":5.5,"ttm_days":27,"ttm_events":6,"ttm_avg_dur":4.5},{"ym":"2023-08","label":"Aug 2023","oos_days":15,"events":5,"avg_dur":3.0,"ttm_days":42,"ttm_events":11,"ttm_avg_dur":3.82},{"ym":"2023-09","label":"Sep 2023","oos_days":8,"events":1,"avg_dur":8.0,"ttm_days":50,"ttm_events":12,"ttm_avg_dur":4.17},{"ym":"2023-10","label":"Oct 2023","oos_days":8,"events":2,"avg_dur":4.0,"ttm_days":58,"ttm_events":14,"ttm_avg_dur":4.14},{"ym":"2023-11","label":"Nov 2023","oos_days":11,"events":5,"avg_dur":2.2,"ttm_days":69,"ttm_events":19,"ttm_avg_dur":3.63},{"ym":"2023-12","label":"Dec 2023","oos_days":23,"events":6,"avg_dur":3.83,"ttm_days":92,"ttm_events":25,"ttm_avg_dur":3.68},{"ym":"2024-01","label":"Jan 2024","oos_days":5,"events":2,"avg_dur":2.5,"ttm_days":97,"ttm_events":27,"ttm_avg_dur":3.59},{"ym":"2024-02","label":"Feb 2024","oos_days":5,"events":1,"avg_dur":5.0,"ttm_days":102,"ttm_events":28,"ttm_avg_dur":3.64},{"ym":"2024-03","label":"Mar 2024","oos_days":14,"events":5,"avg_dur":2.8,"ttm_days":116,"ttm_events":33,"ttm_avg_dur":3.52},{"ym":"2024-04","label":"Apr 2024","oos_days":8,"events":4,"avg_dur":2.0,"ttm_days":124,"ttm_events":37,"ttm_avg_dur":3.35},{"ym":"2024-06","label":"Jun 2024","oos_days":17,"events":4,"avg_dur":4.25,"ttm_days":141,"ttm_events":41,"ttm_avg_dur":3.44},{"ym":"2024-07","label":"Jul 2024","oos_days":22,"events":5,"avg_dur":4.4,"ttm_days":158,"ttm_events":44,"ttm_avg_dur":3.59},{"ym":"2024-08","label":"Aug 2024","oos_days":11,"events":4,"avg_dur":2.75,"ttm_days":147,"ttm_events":44,"ttm_avg_dur":3.34},{"ym":"2024-09","label":"Sep 2024","oos_days":3,"events":1,"avg_dur":3.0,"ttm_days":135,"ttm_events":40,"ttm_avg_dur":3.38},{"ym":"2024-10","label":"Oct 2024","oos_days":2,"events":1,"avg_dur":2.0,"ttm_days":129,"ttm_events":40,"ttm_avg_dur":3.23},{"ym":"2024-11","label":"Nov 2024","oos_days":2,"events":1,"avg_dur":2.0,"ttm_days":123,"ttm_events":39,"ttm_avg_dur":3.15},{"ym":"2024-12","label":"Dec 2024","oos_days":14,"events":3,"avg_dur":4.67,"ttm_days":126,"ttm_events":37,"ttm_avg_dur":3.41},{"ym":"2025-01","label":"Jan 2025","oos_days":18,"events":3,"avg_dur":6.0,"ttm_days":121,"ttm_events":34,"ttm_avg_dur":3.56},{"ym":"2025-02","label":"Feb 2025","oos_days":10,"events":3,"avg_dur":3.33,"ttm_days":126,"ttm_events":35,"ttm_avg_dur":3.6},{"ym":"2025-03","label":"Mar 2025","oos_days":13,"events":4,"avg_dur":3.25,"ttm_days":134,"ttm_events":38,"ttm_avg_dur":3.53},{"ym":"2025-04","label":"Apr 2025","oos_days":7,"events":6,"avg_dur":1.17,"ttm_days":127,"ttm_events":39,"ttm_avg_dur":3.26},{"ym":"2025-05","label":"May 2025","oos_days":9,"events":3,"avg_dur":3.0,"ttm_days":128,"ttm_events":38,"ttm_avg_dur":3.37},{"ym":"2025-06","label":"Jun 2025","oos_days":9,"events":3,"avg_dur":3.0,"ttm_days":120,"ttm_events":37,"ttm_avg_dur":3.24},{"ym":"2025-07","label":"Jul 2025","oos_days":24,"events":5,"avg_dur":4.8,"ttm_days":122,"ttm_events":37,"ttm_avg_dur":3.3},{"ym":"2025-08","label":"Aug 2025","oos_days":16,"events":6,"avg_dur":2.67,"ttm_days":127,"ttm_events":39,"ttm_avg_dur":3.26},{"ym":"2025-09","label":"Sep 2025","oos_days":1,"events":1,"avg_dur":1.0,"ttm_days":125,"ttm_events":39,"ttm_avg_dur":3.21},{"ym":"2025-10","label":"Oct 2025","oos_days":15,"events":3,"avg_dur":5.0,"ttm_days":138,"ttm_events":41,"ttm_avg_dur":3.37},{"ym":"2025-11","label":"Nov 2025","oos_days":22,"events":5,"avg_dur":4.4,"ttm_days":158,"ttm_events":45,"ttm_avg_dur":3.51},{"ym":"2025-12","label":"Dec 2025","oos_days":2,"events":1,"avg_dur":2.0,"ttm_days":146,"ttm_events":43,"ttm_avg_dur":3.4},{"ym":"2026-01","label":"Jan 2026","oos_days":28,"events":5,"avg_dur":5.6,"ttm_days":156,"ttm_events":45,"ttm_avg_dur":3.47},{"ym":"2026-02","label":"Feb 2026","oos_days":44,"events":8,"avg_dur":5.5,"ttm_days":190,"ttm_events":50,"ttm_avg_dur":3.8}],"ALL":[{"ym":"2023-06","label":"Jun 2023","oos_days":111,"events":22,"avg_dur":5.05,"ttm_days":111,"ttm_events":22,"ttm_avg_dur":5.05},{"ym":"2023-07","label":"Jul 2023","oos_days":229,"events":24,"avg_dur":9.54,"ttm_days":340,"ttm_events":46,"ttm_avg_dur":7.39},{"ym":"2023-08","label":"Aug 2023","oos_days":130,"events":23,"avg_dur":5.65,"ttm_days":470,"ttm_events":69,"ttm_avg_dur":6.81},{"ym":"2023-09","label":"Sep 2023","oos_days":58,"events":12,"avg_dur":4.83,"ttm_days":528,"ttm_events":81,"ttm_avg_dur":6.52},{"ym":"2023-10","label":"Oct 2023","oos_days":84,"events":26,"avg_dur":3.23,"ttm_days":612,"ttm_events":107,"ttm_avg_dur":5.72},{"ym":"2023-11","label":"Nov 2023","oos_days":113,"events":22,"avg_dur":5.14,"ttm_days":725,"ttm_events":129,"ttm_avg_dur":5.62},{"ym":"2023-12","label":"Dec 2023","oos_days":81,"events":28,"avg_dur":2.89,"ttm_days":806,"ttm_events":157,"ttm_avg_dur":5.13},{"ym":"2024-01","label":"Jan 2024","oos_days":86,"events":19,"avg_dur":4.53,"ttm_days":892,"ttm_events":176,"ttm_avg_dur":5.07},{"ym":"2024-02","label":"Feb 2024","oos_days":110,"events":21,"avg_dur":5.24,"ttm_days":1002,"ttm_events":197,"ttm_avg_dur":5.09},{"ym":"2024-03","label":"Mar 2024","oos_days":63,"events":30,"avg_dur":2.1,"ttm_days":1065,"ttm_events":227,"ttm_avg_dur":4.69},{"ym":"2024-04","label":"Apr 2024","oos_days":55,"events":25,"avg_dur":2.2,"ttm_days":1120,"ttm_events":252,"ttm_avg_dur":4.44},{"ym":"2024-05","label":"May 2024","oos_days":65,"events":25,"avg_dur":2.6,"ttm_days":1185,"ttm_events":277,"ttm_avg_dur":4.28},{"ym":"2024-06","label":"Jun 2024","oos_days":84,"events":30,"avg_dur":2.8,"ttm_days":1158,"ttm_events":285,"ttm_avg_dur":4.06},{"ym":"2024-07","label":"Jul 2024","oos_days":147,"events":21,"avg_dur":7.0,"ttm_days":1076,"ttm_events":282,"ttm_avg_dur":3.82},{"ym":"2024-08","label":"Aug 2024","oos_days":56,"events":24,"avg_dur":2.33,"ttm_days":1002,"ttm_events":283,"ttm_avg_dur":3.54},{"ym":"2024-09","label":"Sep 2024","oos_days":51,"events":21,"avg_dur":2.43,"ttm_days":995,"ttm_events":292,"ttm_avg_dur":3.41},{"ym":"2024-10","label":"Oct 2024","oos_days":67,"events":22,"avg_dur":3.05,"ttm_days":978,"ttm_events":288,"ttm_avg_dur":3.4},{"ym":"2024-11","label":"Nov 2024","oos_days":65,"events":14,"avg_dur":4.64,"ttm_days":930,"ttm_events":280,"ttm_avg_dur":3.32},{"ym":"2024-12","label":"Dec 2024","oos_days":42,"events":10,"avg_dur":4.2,"ttm_days":891,"ttm_events":262,"ttm_avg_dur":3.4},{"ym":"2025-01","label":"Jan 2025","oos_days":64,"events":9,"avg_dur":7.11,"ttm_days":869,"ttm_events":252,"ttm_avg_dur":3.45},{"ym":"2025-02","label":"Feb 2025","oos_days":62,"events":18,"avg_dur":3.44,"ttm_days":821,"ttm_events":249,"ttm_avg_dur":3.3},{"ym":"2025-03","label":"Mar 2025","oos_days":49,"events":17,"avg_dur":2.88,"ttm_days":807,"ttm_events":236,"ttm_avg_dur":3.42},{"ym":"2025-04","label":"Apr 2025","oos_days":36,"events":22,"avg_dur":1.64,"ttm_days":788,"ttm_events":233,"ttm_avg_dur":3.38},{"ym":"2025-05","label":"May 2025","oos_days":25,"events":5,"avg_dur":5.0,"ttm_days":748,"ttm_events":213,"ttm_avg_dur":3.51},{"ym":"2025-06","label":"Jun 2025","oos_days":85,"events":21,"avg_dur":4.05,"ttm_days":749,"ttm_events":204,"ttm_avg_dur":3.67},{"ym":"2025-07","label":"Jul 2025","oos_days":123,"events":18,"avg_dur":6.83,"ttm_days":725,"ttm_events":201,"ttm_avg_dur":3.61},{"ym":"2025-08","label":"Aug 2025","oos_days":101,"events":20,"avg_dur":5.05,"ttm_days":770,"ttm_events":197,"ttm_avg_dur":3.91},{"ym":"2025-09","label":"Sep 2025","oos_days":115,"events":27,"avg_dur":4.26,"ttm_days":834,"ttm_events":203,"ttm_avg_dur":4.11},{"ym":"2025-10","label":"Oct 2025","oos_days":51,"events":12,"avg_dur":4.25,"ttm_days":818,"ttm_events":193,"ttm_avg_dur":4.24},{"ym":"2025-11","label":"Nov 2025","oos_days":81,"events":18,"avg_dur":4.5,"ttm_days":834,"ttm_events":197,"ttm_avg_dur":4.23},{"ym":"2025-12","label":"Dec 2025","oos_days":57,"events":8,"avg_dur":7.12,"ttm_days":849,"ttm_events":195,"ttm_avg_dur":4.35},{"ym":"2026-01","label":"Jan 2026","oos_days":91,"events":13,"avg_dur":7.0,"ttm_days":876,"ttm_events":199,"ttm_avg_dur":4.4},{"ym":"2026-02","label":"Feb 2026","oos_days":117,"events":12,"avg_dur":9.75,"ttm_days":931,"ttm_events":193,"ttm_avg_dur":4.82}]}};
+
+// ── Render current OOS table ─────────────────────────────────────────
+function getSeverityClass(days) {
+  if (days >= 21) return { row: 'sev-high', badge: 'badge-high', label: 'Critical' };
+  if (days >= 7)  return { row: 'sev-med',  badge: 'badge-med',  label: 'Elevated' };
+  return              { row: 'sev-low',  badge: 'badge-low',  label: 'Active'   };
+}
+
+const oosGrid = document.getElementById('oos-grid');
+const refLabel = REF_DATE.toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'});
+document.getElementById('oos-ref-date').textContent = `As of ${refLabel}`;
+
+if (CURRENT_OOS.length === 0) {
+  oosGrid.innerHTML = '<div class="oos-none">✓ No vehicles currently out of service</div>';
+} else {
+  const maxDays = Math.max(...CURRENT_OOS.map(v => v.daysOOS), 1);
+  oosGrid.innerHTML = `
+    <table class="oos-table">
+      <thead>
+        <tr>
+          <th>Vehicle</th>
+          <th>Fleet</th>
+          <th>Type</th>
+          <th>OOS Since</th>
+          <th>Last Seen</th>
+          <th style="text-align:right">Days OOS</th>
+          <th style="width:140px">Duration</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${CURRENT_OOS.map(v => {
+          const sev = getSeverityClass(v.daysOOS);
+          const pct = Math.round((v.daysOOS / maxDays) * 100);
+          const fleetColor = FC[v.fleet] || '#1B3A6B';
+          const catLabel = v.category === 'BSAccident' ? 'Accident' : 'Mechanical';
+          return `<tr class="oos-row ${sev.row}">
+            <td><span class="oos-vehicle-id">#${v.id}</span></td>
+            <td><span class="fleet-chip" style="background:${fleetColor}18;color:${fleetColor};border:1px solid ${fleetColor}30">${v.fleet}</span></td>
+            <td><span class="type-chip">${catLabel}</span></td>
+            <td>${fmtDate(v.start)}</td>
+            <td class="muted-cell">${fmtDate(v.end)}</td>
+            <td style="text-align:right"><strong>${v.daysOOS}</strong></td>
+            <td>
+              <div class="oos-bar-wrap">
+                <div class="oos-bar-fill ${sev.row}-bar" style="width:${pct}%"></div>
+              </div>
+            </td>
+            <td><span class="sev-badge ${sev.badge}">${sev.label}</span></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ── Dashboard logic ──────────────────────────────────────────────────
+let activeFleet = 'ALL', activeYear = 'ALL';
+let charts = {};
+
+const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const YEAR_COLORS_MAP = {'2024':'#1B3A6B','2025':'#06B6D4','2026':'#F97316'};
+const YEAR_LIST = ['2024','2025','2026'];
+
+function getData(fleet, year) {
+  const lo = year === 'ALL' ? '2024-01' : year + '-01';
+  const hi = year === 'ALL' ? '9999' : year + '-12';
+  return (RAW.data[fleet] || []).filter(d => d.ym >= '2024-01' && d.ym >= lo && d.ym <= hi);
+}
+
+function ha(hex, a) {
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+function activeColor() {
+  return activeYear !== 'ALL' ? YC[activeYear] : FC[activeFleet];
+}
+
+const CHART_OPTS = (color) => ({
+  responsive: true, maintainAspectRatio: false,
+  plugins: {
+    legend: { display: true, position: 'top', labels: { font: { family: "'Inter',sans-serif", size: 11 }, color: '#6B7280', boxWidth: 10, padding: 14, usePointStyle: true } },
+    tooltip: { backgroundColor: '#1A1F3C', borderColor: '#0F2549', borderWidth: 1, titleColor: '#7BAFD4', bodyColor: '#fff', titleFont: { family: "'Inter',sans-serif", size: 11 }, bodyFont: { family: "'DM Mono',monospace", size: 12 }, padding: 12, cornerRadius: 8 }
+  },
+  scales: {
+    x: { grid: { color: ha(color, 0.06), drawTicks: false }, ticks: { color: '#9CA3AF', font: { family: "'Inter',sans-serif", size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 14 }, border: { color: '#E2E8F8' } },
+    y: { grid: { color: ha(color, 0.06), drawTicks: false }, ticks: { color: '#9CA3AF', font: { family: "'Inter',sans-serif", size: 10 }, padding: 8 }, border: { color: '#E2E8F8' } }
+  }
+});
+
+function buildCombo(id, labels, bars, ttm, color, barLabel, ttmLabel) {
+  const ctx = document.getElementById(id).getContext('2d');
+  if (charts[id]) charts[id].destroy();
+  const opts = CHART_OPTS(color);
+  charts[id] = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: barLabel, data: bars, backgroundColor: ha(color, 0.2), borderColor: color, borderWidth: 2, borderRadius: 4, yAxisID: 'y' },
+      { label: ttmLabel, data: ttm, type: 'line', borderColor: ha(color, 0.7), borderWidth: 2.5, borderDash: [5,3], pointRadius: 0, fill: false, tension: 0.35, yAxisID: 'y2' }
+    ]},
+    options: { ...opts,
+      scales: { ...opts.scales,
+        y:  { ...opts.scales.y, position: 'left' },
+        y2: { ...opts.scales.y, position: 'right', grid: { display: false }, ticks: { ...opts.scales.y.ticks, color: ha(color, 0.6) } }
+      }
+    }
+  });
+}
+
+function buildYoY(id, fleet, yearFilter, fleetColor, useTtm) {
+  const ctx = document.getElementById(id).getContext('2d');
+  if (charts[id]) charts[id].destroy();
+  const years = yearFilter === 'ALL' ? YEAR_LIST : [yearFilter];
+  const datasets = years.map(yr => {
+    const yc = YEAR_COLORS_MAP[yr];
+    const pts = new Array(12).fill(null);
+    (RAW.data[fleet] || []).filter(r => r.ym.startsWith(yr)).forEach(r => {
+      const mo = parseInt(r.ym.split('-')[1]) - 1;
+      pts[mo] = useTtm ? r.ttm_avg_dur : (r.events > 0 ? parseFloat((r.oos_days/r.events).toFixed(2)) : null);
+    });
+    return { label: yr, data: pts, borderColor: yc, backgroundColor: ha(yc, 0.08), borderWidth: 2.5,
+             pointBackgroundColor: yc, pointRadius: 4, pointHoverRadius: 7,
+             fill: false, tension: 0.3, spanGaps: false };
+  });
+  const opts = CHART_OPTS(fleetColor);
+  charts[id] = new Chart(ctx, {
+    type: 'line',
+    data: { labels: MONTH_LABELS, datasets },
+    options: { ...opts,
+      plugins: { ...opts.plugins,
+        legend: { display: true, position: 'top', labels: { font: { family:"'Inter',sans-serif", size:11 }, color:'#6B7280', boxWidth:10, padding:14, usePointStyle:true } },
+        tooltip: { ...opts.plugins.tooltip, callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed.y != null ? c.parsed.y.toFixed(2) : '—'} days` } }
+      }
+    }
+  });
+}
+
+function applyColor(color, bgColor) {
+  [1,2,3,4,5,6].forEach(i => {
+    const el = document.getElementById('kc'+i);
+    if (el) el.style.setProperty('--accent', color);
+  });
+  ['chart-card-cu','chart-card-yoy-dur','chart-card-yoy-ttm'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.setProperty('--chart-accent', color);
+  });
+  ['kd','ke','ku','ktd','kte','ktu'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.color = color;
+  });
+  const thead = document.getElementById('thead-row');
+  if (thead) thead.querySelectorAll('th').forEach((th, i) => {
+    th.style.background = i >= 4 ? ha(color, 0.7) : color;
+  });
+  document.querySelectorAll('.yr td').forEach(td => {
+    td.style.background = bgColor;
+    td.style.color = color;
+  });
+  document.querySelector('tfoot tr').querySelectorAll('td').forEach((td, i) => {
+    if (i < 4) td.style.color = color;
+  });
+}
+
+function go() {
+  const fleet = activeFleet, year = activeYear;
+  const d = getData(fleet, year);
+  const color = activeColor();
+  const bgColor = FBG[fleet] || '#EEF3FA';
+
+  const td = d.reduce((s,r)=>s+r.oos_days,0);
+  const te = d.reduce((s,r)=>s+r.events,0);
+  const tu = te > 0 ? (td/te) : 0;
+  const lat = d[d.length-1] || {};
+
+  document.getElementById('kd').textContent = td.toLocaleString();
+  document.getElementById('ke').textContent = te.toLocaleString();
+  document.getElementById('ku').textContent = tu.toFixed(2);
+  document.getElementById('ktd').textContent = (lat.ttm_days||0).toLocaleString();
+  document.getElementById('kte').textContent = (lat.ttm_events||0).toLocaleString();
+  document.getElementById('ktu').textContent = (lat.ttm_avg_dur||0).toFixed(2);
+
+  applyColor(color, bgColor);
+
+  const labels = d.map(r => r.label);
+  buildCombo('cu', labels,
+    d.map(r => r.events > 0 ? parseFloat((r.oos_days/r.events).toFixed(2)) : 0),
+    d.map(r => r.ttm_avg_dur), color, 'Monthly Avg Duration', 'TTM Avg Duration');
+  buildYoY('yoy-dur', fleet, year, color, false);
+  buildYoY('yoy-ttm', fleet, year, color, true);
+
+  const tb = document.getElementById('tb');
+  tb.innerHTML = '';
+  let cy = null;
+  d.forEach(r => {
+    const yr = r.ym.slice(0,4);
+    if (yr !== cy) {
+      cy = yr;
+      const t = document.createElement('tr');
+      t.className = 'yr';
+      t.innerHTML = `<td colspan="7" style="background:${bgColor};color:${color}">${yr}</td>`;
+      tb.appendChild(t);
+    }
+    const dur = r.events > 0 ? (r.oos_days/r.events).toFixed(2) : '—';
+    const t = document.createElement('tr');
+    t.innerHTML = `<td class="dm">${r.label}</td><td class="dn">${r.oos_days||'—'}</td><td class="dn">${r.events||'—'}</td><td class="dn">${dur}</td><td class="dt">${r.ttm_days}</td><td class="dt">${r.ttm_events}</td><td class="dt">${r.ttm_avg_dur.toFixed(2)}</td>`;
+    tb.appendChild(t);
+  });
+
+  document.getElementById('fd').textContent = td.toLocaleString();
+  document.getElementById('fe').textContent = te.toLocaleString();
+  document.getElementById('fu2').textContent = tu.toFixed(2);
+  document.getElementById('ftd').textContent = (lat.ttm_days||0).toLocaleString();
+  document.getElementById('fte').textContent = (lat.ttm_events||0).toLocaleString();
+  document.getElementById('ftu').textContent = (lat.ttm_avg_dur||0).toFixed(2);
+
+  const yLabel = year === 'ALL' ? '2024–2026' : year;
+  document.getElementById('tlbl').textContent = `${FN[fleet]} · ${yLabel}`;
+}
+
+document.querySelectorAll('.fbtn[data-fleet]').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.fbtn[data-fleet]').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    activeFleet = b.dataset.fleet;
+    go();
+  });
+});
+
+document.querySelectorAll('.fbtn[data-year]').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.fbtn[data-year]').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    activeYear = b.dataset.year;
+    go();
+  });
+});
+
+go();
+</script>
+</body>
+</html>
