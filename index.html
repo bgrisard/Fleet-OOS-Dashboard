@@ -139,6 +139,25 @@ tfoot td:first-child{font-family:'Inter',sans-serif}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:var(--light)}
 ::-webkit-scrollbar-thumb{background:var(--bdark);border-radius:4px}
+/* REFRESH PANEL */
+.refresh-panel{background:#fff;border-top:2px solid var(--border);padding:24px 52px 28px;margin-top:0}
+.refresh-inner{max-width:1360px;margin:0 auto;display:flex;align-items:flex-start;gap:32px}
+.refresh-left{flex:0 0 260px}
+.refresh-title{font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:7px;margin-bottom:6px}
+.refresh-sub{font-size:11px;color:var(--muted);line-height:1.6}
+.refresh-right{flex:1}
+.refresh-url-row{display:flex;gap:10px;align-items:center}
+.url-input{flex:1;font-family:'DM Mono',monospace;font-size:11px;padding:9px 14px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);outline:none;transition:border-color .15s}
+.url-input:focus{border-color:#6366F1}
+.url-input::placeholder{color:#94A3B8}
+.refresh-btn{display:inline-flex;align-items:center;gap:7px;padding:9px 20px;background:#334155;color:#fff;border:none;border-radius:8px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s}
+.refresh-btn:hover{background:#1E293B}
+.refresh-btn:disabled{background:#94A3B8;cursor:not-allowed}
+.refresh-btn.spinning svg{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.refresh-status{margin-top:8px;font-size:11px;color:var(--muted);min-height:16px}
+.refresh-status.ok{color:#059669}
+.refresh-status.err{color:#EF4444}
 </style>
 </head>
 <body>
@@ -238,6 +257,28 @@ tfoot td:first-child{font-family:'Inter',sans-serif}
     </div>
   </div>
 </main>
+
+<!-- REFRESH PANEL -->
+<div class="refresh-panel">
+  <div class="refresh-inner">
+    <div class="refresh-left">
+      <div class="refresh-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        Live Data
+      </div>
+    </div>
+    <div class="refresh-right">
+      <div class="refresh-url-row">
+        <input type="text" id="sheet-url" class="url-input" value="https://docs.google.com/spreadsheets/d/e/2PACX-1vRCP_PO4ILtixcZ8R6Pg15PLz3qqZgmt7kXzwrchb1Pj7F6JooX3i8c4cu8kBDX9BwIRQCEvYipYfjr/pub?gid=0&single=true&output=csv" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv" spellcheck="false">
+        <button class="refresh-btn" id="refresh-btn" onclick="doRefresh()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Refresh Data
+        </button>
+      </div>
+      <div class="refresh-status" id="refresh-status"></div>
+    </div>
+  </div>
+</div>
 
 <script>
 let VEHICLE_EVENTS = [{"id":"17204","fleet":"MED","start":"2026-03-01","end":"2026-03-02"},{"id":"6166","fleet":"LOCAL","start":"2026-02-02","end":"2026-03-02"},{"id":"8145","fleet":"LOCAL","start":"2026-03-02","end":"2026-03-02"},{"id":"19215","fleet":"OTR","start":"2026-03-02","end":"2026-03-02"},{"id":"17207","fleet":"MED","start":"2026-02-26","end":"2026-03-02"},{"id":"25240","fleet":"OTR","start":"2026-02-19","end":"2026-02-27"},{"id":"18231","fleet":"MED","start":"2026-02-24","end":"2026-02-25"},{"id":"18213","fleet":"MED","start":"2026-02-24","end":"2026-02-25"},{"id":"19217","fleet":"OTR","start":"2026-02-16","end":"2026-02-18"},{"id":"18210","fleet":"MED","start":"2026-01-21","end":"2026-02-18"},{"id":"19218","fleet":"OTR","start":"2026-02-13","end":"2026-02-17"},{"id":"26244","fleet":"OTR","start":"2026-02-14","end":"2026-02-16"},{"id":"25233","fleet":"OTR","start":"2026-02-09","end":"2026-02-11"},{"id":"18211","fleet":"MED","start":"2026-02-05","end":"2026-02-05"},{"id":"19214","fleet":"OTR","start":"2026-01-19","end":"2026-01-21"},{"id":"6151","fleet":"LOCAL","start":"2026-01-16","end":"2026-01-21"},{"id":"16157","fleet":"MED","start":"2026-01-16","end":"2026-01-19"},{"id":"11219","fleet":"LOCAL","start":"2026-01-01","end":"2026-01-16"},{"id":"25239","fleet":"OTR","start":"2026-01-12","end":"2026-01-15"},{"id":"16158","fleet":"MED","start":"2026-01-05","end":"2026-01-09"},{"id":"17319","fleet":"MINI","start":"2025-12-15","end":"2026-01-07"},{"id":"24230","fleet":"OTR","start":"2025-12-30","end":"2026-01-07"},{"id":"25237","fleet":"OTR","start":"2026-01-05","end":"2026-01-05"},{"id":"16155","fleet":"MED","start":"2025-12-29","end":"2026-01-02"},{"id":"17209","fleet":"MED","start":"2025-12-09","end":"2025-12-12"},{"id":"17201","fleet":"MED","start":"2025-11-15","end":"2025-12-05"},{"id":"16154","fleet":"MED","start":"2025-11-24","end":"2025-11-25"},{"id":"16156","fleet":"MED","start":"2025-11-17","end":"2025-11-24"},{"id":"6153","fleet":"LOCAL","start":"2025-11-24","end":"2025-11-24"},{"id":"24229","fleet":"OTR","start":"2025-11-07","end":"2025-11-13"},{"id":"17206","fleet":"MED","start":"2025-11-10","end":"2025-11-12"},{"id":"25241","fleet":"OTR","start":"2025-11-12","end":"2025-11-12"},{"id":"9146","fleet":"LOCAL","start":"2025-11-06","end":"2025-11-12"},{"id":"8144","fleet":"LOCAL","start":"2025-11-05","end":"2025-11-07"},{"id":"11220","fleet":"LOCAL","start":"2025-10-27","end":"2025-10-30"},{"id":"17205","fleet":"MED","start":"2025-10-21","end":"2025-10-23"},{"id":"16159","fleet":"MED","start":"2025-09-30","end":"2025-10-02"},{"id":"18232","fleet":"MED","start":"2025-09-29","end":"2025-10-02"},{"id":"17318","fleet":"MINI","start":"2025-09-30","end":"2025-10-02"},{"id":"17208","fleet":"MED","start":"2025-09-07","end":"2025-09-29"},{"id":"25234","fleet":"OTR","start":"2025-09-08","end":"2025-09-08"},{"id":"9147","fleet":"LOCAL","start":"2025-08-18","end":"2025-09-07"},{"id":"7150","fleet":"LOCAL","start":"2025-09-03","end":"2025-09-04"},{"id":"25238","fleet":"OTR","start":"2025-08-18","end":"2025-08-18"},{"id":"25236","fleet":"OTR","start":"2025-08-12","end":"2025-08-17"},{"id":"11221","fleet":"LOCAL","start":"2025-07-30","end":"2025-08-07"},{"id":"19322","fleet":"MINI","start":"2025-07-15","end":"2025-07-15"},{"id":"18212","fleet":"MED","start":"2025-06-19","end":"2025-06-19"},{"id":"6152","fleet":"LOCAL","start":"2025-06-13","end":"2025-06-16"},{"id":"25235","fleet":"OTR","start":"2025-06-04","end":"2025-06-05"},{"id":"19216","fleet":"OTR","start":"2025-05-27","end":"2025-05-29"},{"id":"17320","fleet":"MINI","start":"2024-11-07","end":"2024-11-08"},{"id":"17317","fleet":"MINI","start":"2024-10-22","end":"2024-10-22"},{"id":"19321","fleet":"MINI","start":"2024-08-16","end":"2024-08-18"}];
@@ -423,8 +464,180 @@ document.querySelectorAll('.fbtn[data-year]').forEach(b=>{
   });
 });
 
-renderOOS();
-go();
+// ── Google Sheets Refresh ─────────────────────────────────────────────
+const URL_KEY = 'oos_sheet_url';
+
+// Restore saved URL on load
+(function() {
+  const saved = localStorage.getItem(URL_KEY);
+  if (saved) document.getElementById('sheet-url').value = saved;
+})();
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''));
+  return lines.slice(1).map(line => {
+    const cols=[]; let cur='', inQ=false;
+    for (let i=0; i<line.length; i++) {
+      if (line[i]==='"') { inQ=!inQ; }
+      else if (line[i]===',' && !inQ) { cols.push(cur.trim()); cur=''; }
+      else cur+=line[i];
+    }
+    cols.push(cur.trim());
+    const row={};
+    headers.forEach((h,i) => row[h]=(cols[i]||'').replace(/^"|"$/g,''));
+    return row;
+  }).filter(r => r[headers[0]]);
+}
+
+function processAndRender(rows) {
+  const EXCLUDED=['RTA','OTHER'], OOS_CATS=['OOS','BSAccident'];
+  const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  const data = rows
+    .filter(r => !EXCLUDED.includes(r.Fleet))
+    .map(r => ({...r, date: new Date(r.Date), isOOS: OOS_CATS.includes(r.Category)}))
+    .filter(r => !isNaN(r.date));
+
+  if (!data.length) throw new Error('No valid rows found after filtering.');
+
+  // Event detection
+  const byVehicle = {};
+  data.filter(r=>r.isOOS).forEach(r => {
+    if (!byVehicle[r.VehicleID]) byVehicle[r.VehicleID] = {fleet:r.Fleet, days:[]};
+    byVehicle[r.VehicleID].days.push(r.date);
+  });
+
+  const allEvents = [];
+  Object.entries(byVehicle).forEach(([id,{fleet,days}]) => {
+    days.sort((a,b)=>a-b);
+    let s=days[0], e=days[0];
+    for (let i=1; i<days.length; i++) {
+      if (Math.round((days[i]-days[i-1])/86400000)===1) { e=days[i]; }
+      else { allEvents.push({fleet,start:s,end:e,ym:toYMd(s)}); s=days[i]; e=days[i]; }
+    }
+    allEvents.push({fleet,start:s,end:e,ym:toYMd(s)});
+  });
+
+  function toYMd(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+  function ymLabel(ym) { const [y,m]=ym.split('-'); return MONTHS[parseInt(m)-1]+' '+y; }
+
+  const oosDays = {};
+  data.filter(r=>r.isOOS).forEach(r => {
+    const ym=toYMd(r.date), key=r.VehicleID+'_'+r.date.toISOString().slice(0,10);
+    if (!oosDays[r.Fleet]) oosDays[r.Fleet]={};
+    if (!oosDays[r.Fleet][ym]) oosDays[r.Fleet][ym]=new Set();
+    oosDays[r.Fleet][ym].add(key);
+  });
+
+  function buildSummary(fleet) {
+    const evts = fleet==='ALL' ? allEvents : allEvents.filter(e=>e.fleet===fleet);
+    const getDays = ym => {
+      if (fleet==='ALL') { let t=0; Object.values(oosDays).forEach(fd=>{if(fd[ym]) t+=fd[ym].size;}); return t; }
+      return (oosDays[fleet]&&oosDays[fleet][ym]) ? oosDays[fleet][ym].size : 0;
+    };
+    const allYMs = [...new Set([...evts.map(e=>e.ym),...Object.values(oosDays).flatMap(fd=>Object.keys(fd))])].sort();
+    const rows = allYMs.map(ym => {
+      const oos_d=getDays(ym), evtCount=evts.filter(e=>e.ym===ym).length;
+      return {ym, label:ymLabel(ym), oos_days:oos_d, events:evtCount, avg_dur:evtCount>0?Math.round(oos_d/evtCount*100)/100:0};
+    });
+    rows.forEach((r,i) => {
+      const w=rows.slice(Math.max(0,i-11),i+1);
+      r.ttm_days=w.reduce((s,x)=>s+x.oos_days,0);
+      r.ttm_events=w.reduce((s,x)=>s+x.events,0);
+      r.ttm_avg_dur=r.ttm_events>0?Math.round(r.ttm_days/r.ttm_events*100)/100:0;
+    });
+    return rows;
+  }
+
+  const fleets = [...new Set(data.map(r=>r.Fleet))].sort().filter(f=>!['RTA','OTHER'].includes(f));
+  const newData = {};
+  fleets.forEach(f => newData[f]=buildSummary(f));
+  newData['ALL'] = buildSummary('ALL');
+
+  // Vehicle events
+  const newVE = Object.entries(byVehicle).map(([id,{fleet,days}]) => {
+    days.sort((a,b)=>a-b);
+    let s=days[0],e=days[0];
+    for(let i=1;i<days.length;i++) {
+      if(Math.round((days[i]-days[i-1])/86400000)===1){e=days[i];}
+      else{s=days[i];e=days[i];}
+    }
+    return {id:String(id),fleet,start:s.toISOString().slice(0,10),end:e.toISOString().slice(0,10)};
+  }).sort((a,b)=>b.end.localeCompare(a.end));
+
+  // Swap data in
+  Object.assign(RAW.data, newData);
+  RAW.fleets = fleets;
+  VEHICLE_EVENTS.length = 0;
+  newVE.forEach(v => VEHICLE_EVENTS.push(v));
+
+  const allDates = data.map(r=>r.date);
+  const maxDate = new Date(Math.max(...allDates));
+  const minDate = new Date(Math.min(...allDates));
+  DATA_MAX_DATE.setTime(maxDate.getTime());
+
+  const fmt = d => d.toLocaleDateString('en-US',{month:'short',year:'numeric'});
+  document.getElementById('data-range-label').innerHTML =
+    `${fmt(minDate)} – ${fmt(maxDate)} &nbsp;·&nbsp; OOS &amp; BSAccident &nbsp;·&nbsp; Excl. RTA &amp; OTHER`;
+
+  renderOOS();
+  go();
+  return {rows: rows.length, maxDate};
+}
+
+async function doRefresh() {
+  const urlInput = document.getElementById('sheet-url');
+  const btn = document.getElementById('refresh-btn');
+  const status = document.getElementById('refresh-status');
+  const url = urlInput.value.trim();
+
+  if (!url) { setStatus('err', 'Please paste a Google Sheet CSV URL first.'); return; }
+
+  // Save URL for next time
+  localStorage.setItem(URL_KEY, url);
+
+  btn.disabled = true;
+  btn.classList.add('spinning');
+  setStatus('', 'Fetching data…');
+
+  // Use a CORS proxy to fetch the Google Sheet
+  const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+
+  try {
+    const res = await fetch(proxyUrl);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    if (!text.trim()) throw new Error('Empty response from sheet.');
+
+    const rows = parseCSV(text);
+    if (!rows.length) throw new Error('No data rows found in CSV.');
+
+    const {rows: rowCount, maxDate} = processAndRender(rows);
+    const dateStr = maxDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    setStatus('ok', `✓ Loaded ${rowCount.toLocaleString()} rows · data through ${dateStr}`);
+  } catch(err) {
+    setStatus('err', `⚠ ${err.message}. Check the URL or try republishing the sheet.`);
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('spinning');
+  }
+}
+
+function setStatus(type, msg) {
+  const el = document.getElementById('refresh-status');
+  el.textContent = msg;
+  el.className = 'refresh-status' + (type ? ' '+type : '');
+}
+
+// Allow pressing Enter in the URL field
+document.getElementById('sheet-url').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doRefresh();
+});
+
+// Auto-fetch on page load
+doRefresh();
 
 </script>
 </body>
