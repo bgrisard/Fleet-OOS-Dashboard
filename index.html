@@ -269,7 +269,7 @@ tfoot td:first-child{font-family:'Inter',sans-serif}
     </div>
     <div class="refresh-right">
       <div class="refresh-url-row">
-        <input type="text" id="sheet-url" class="url-input" value="https://docs.google.com/spreadsheets/d/e/2PACX-1vRCP_PO4ILtixcZ8R6Pg15PLz3qqZgmt7kXzwrchb1Pj7F6JooX3i8c4cu8kBDX9BwIRQCEvYipYfjr/pub?gid=0&single=true&output=csv" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv" spellcheck="false">
+        <input type="text" id="sheet-url" class="url-input" value="https://docs.google.com/spreadsheets/d/e/2PACX-1vRCP_PO4ILtixcZ8R6Pg15PLz3qqZgmt7kXzwrchb1Pj7F6JooX3i8c4cu8kBDX9BwIRQCEvYipYfjr/pub?output=csv" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv" spellcheck="false">
         <button class="refresh-btn" id="refresh-btn" onclick="doRefresh()">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
           Refresh Data
@@ -467,10 +467,11 @@ document.querySelectorAll('.fbtn[data-year]').forEach(b=>{
 // ── Google Sheets Refresh ─────────────────────────────────────────────
 const URL_KEY = 'oos_sheet_url';
 
-// Restore saved URL on load
+// Restore saved URL on load, or use default
 (function() {
   const saved = localStorage.getItem(URL_KEY);
-  if (saved) document.getElementById('sheet-url').value = saved;
+  const defaultUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRCP_PO4ILtixcZ8R6Pg15PLz3qqZgmt7kXzwrchb1Pj7F6JooX3i8c4cu8kBDX9BwIRQCEvYipYfjr/pub?output=csv';
+  document.getElementById('sheet-url').value = saved || defaultUrl;
 })();
 
 function parseCSV(text) {
@@ -601,28 +602,41 @@ async function doRefresh() {
   btn.classList.add('spinning');
   setStatus('', 'Fetching data…');
 
-  // Use a CORS proxy to fetch the Google Sheet
-  const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+  // Try multiple CORS proxies in sequence until one works
+  const proxies = [
+    u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+    u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    u => `https://thingproxy.freeboard.io/fetch/${u}`,
+  ];
 
-  try {
-    const res = await fetch(proxyUrl);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const text = await res.text();
-    if (!text.trim()) throw new Error('Empty response from sheet.');
+  let lastErr = null;
+  for (const makeProxy of proxies) {
+    try {
+      const proxyUrl = makeProxy(url);
+      setStatus('', `Fetching data…`);
+      const res = await fetch(proxyUrl, {cache: 'no-store'});
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      if (!text.trim() || text.trim().startsWith('<')) throw new Error('Bad response (got HTML, not CSV)');
 
-    const rows = parseCSV(text);
-    if (!rows.length) throw new Error('No data rows found in CSV.');
+      const rows = parseCSV(text);
+      if (!rows.length) throw new Error('No data rows found in CSV.');
 
-    const {rows: rowCount, maxDate} = processAndRender(rows);
-    const dateStr = maxDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-    setStatus('ok', `✓ Loaded ${rowCount.toLocaleString()} rows · data through ${dateStr}`);
-  } catch(err) {
-    setStatus('err', `⚠ ${err.message}. Check the URL or try republishing the sheet.`);
-    console.error(err);
-  } finally {
-    btn.disabled = false;
-    btn.classList.remove('spinning');
+      const {rows: rowCount, maxDate} = processAndRender(rows);
+      const dateStr = maxDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+      setStatus('ok', `✓ Loaded ${rowCount.toLocaleString()} rows · data through ${dateStr}`);
+      btn.disabled = false;
+      btn.classList.remove('spinning');
+      return; // success — stop trying proxies
+    } catch(err) {
+      lastErr = err;
+      console.warn('Proxy failed, trying next…', err.message);
+    }
   }
+
+  // All proxies failed
+  setStatus('err', `⚠ Could not fetch data: ${lastErr.message}. Check the sheet is published as CSV.`);
+  console.error(lastErr);
 }
 
 function setStatus(type, msg) {
