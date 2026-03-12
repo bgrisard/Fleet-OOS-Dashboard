@@ -465,15 +465,14 @@ document.querySelectorAll('.fbtn[data-year]').forEach(b=>{
 });
 
 // ── Google Sheets Refresh ─────────────────────────────────────────────
-const URL_KEY = 'oos_sheet_url';
+const URL_KEY     = 'oos_sheet_url';
+const CACHE_KEY   = 'oos_csv_cache';
+const CACHE_TS    = 'oos_csv_ts';
+const CACHE_TTL   = 60 * 60 * 1000; // 1 hour
+const DEFAULT_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRCP_PO4ILtixcZ8R6Pg15PLz3qqZgmt7kXzwrchb1Pj7F6JooX3i8c4cu8kBDX9BwIRQCEvYipYfjr/pub?output=csv';
 
-// Restore saved URL on load, or use default
-(function() {
-  const saved = localStorage.getItem(URL_KEY);
-  const defaultUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRCP_PO4ILtixcZ8R6Pg15PLz3qqZgmt7kXzwrchb1Pj7F6JooX3i8c4cu8kBDX9BwIRQCEvYipYfjr/pub?output=csv';
-  document.getElementById('sheet-url').value = saved || defaultUrl;
-})();
-
+// Restore saved URL
+document.getElementById('sheet-url').value = localStorage.getItem(URL_KEY) || DEFAULT_URL;
 function parseCSV(text) {
   const lines = text.trim().split('\n');
   const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''));
@@ -587,71 +586,109 @@ function processAndRender(rows) {
   return {rows: rows.length, maxDate};
 }
 
-async function doRefresh() {
-  const urlInput = document.getElementById('sheet-url');
-  const btn = document.getElementById('refresh-btn');
-  const status = document.getElementById('refresh-status');
-  const url = urlInput.value.trim();
-
-  if (!url) { setStatus('err', 'Please paste a Google Sheet CSV URL first.'); return; }
-
-  // Save URL for next time
-  localStorage.setItem(URL_KEY, url);
-
-  btn.disabled = true;
-  btn.classList.add('spinning');
-  setStatus('', 'Fetching data…');
-
-  // Try multiple CORS proxies in sequence until one works
-  const proxies = [
-    u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-    u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-    u => `https://thingproxy.freeboard.io/fetch/${u}`,
-  ];
-
-  let lastErr = null;
-  for (const makeProxy of proxies) {
-    try {
-      const proxyUrl = makeProxy(url);
-      setStatus('', `Fetching data…`);
-      const res = await fetch(proxyUrl, {cache: 'no-store'});
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const text = await res.text();
-      if (!text.trim() || text.trim().startsWith('<')) throw new Error('Bad response (got HTML, not CSV)');
-
-      const rows = parseCSV(text);
-      if (!rows.length) throw new Error('No data rows found in CSV.');
-
-      const {rows: rowCount, maxDate} = processAndRender(rows);
-      const dateStr = maxDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-      setStatus('ok', `✓ Loaded ${rowCount.toLocaleString()} rows · data through ${dateStr}`);
-      btn.disabled = false;
-      btn.classList.remove('spinning');
-      return; // success — stop trying proxies
-    } catch(err) {
-      lastErr = err;
-      console.warn('Proxy failed, trying next…', err.message);
-    }
-  }
-
-  // All proxies failed
-  setStatus('err', `⚠ Could not fetch data: ${lastErr.message}. Check the sheet is published as CSV.`);
-  console.error(lastErr);
-}
-
 function setStatus(type, msg) {
   const el = document.getElementById('refresh-status');
   el.textContent = msg;
   el.className = 'refresh-status' + (type ? ' '+type : '');
 }
 
-// Allow pressing Enter in the URL field
+async function fetchFromSheet(url, silent) {
+  const proxies = [
+    u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+    u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    u => `https://thingproxy.freeboard.io/fetch/${u}`,
+  ];
+  let lastErr = null;
+  for (const makeProxy of proxies) {
+    try {
+      const res = await fetch(makeProxy(url), {cache: 'no-store'});
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      if (!text.trim() || text.trim().startsWith('<')) throw new Error('Received HTML instead of CSV');
+      const rows = parseCSV(text);
+      if (!rows.length) throw new Error('No data rows found in CSV');
+      // Save raw CSV to cache
+      localStorage.setItem(CACHE_KEY, text);
+      localStorage.setItem(CACHE_TS, Date.now().toString());
+      return rows;
+    } catch(err) {
+      lastErr = err;
+      console.warn('Proxy failed, trying next…', err.message);
+    }
+  }
+  throw lastErr;
+}
+
+// Manual refresh button
+async function doRefresh() {
+  const url = document.getElementById('sheet-url').value.trim();
+  if (!url) { setStatus('err', 'No URL set.'); return; }
+  localStorage.setItem(URL_KEY, url);
+
+  const btn = document.getElementById('refresh-btn');
+  btn.disabled = true;
+  btn.classList.add('spinning');
+  setStatus('', 'Fetching latest data…');
+
+  try {
+    const rows = await fetchFromSheet(url, false);
+    const {rows: rowCount, maxDate} = processAndRender(rows);
+    const dateStr = maxDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    setStatus('ok', `✓ Updated · ${rowCount.toLocaleString()} rows · data through ${dateStr}`);
+  } catch(err) {
+    setStatus('err', `⚠ Fetch failed: ${err.message}`);
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('spinning');
+  }
+}
+
+// On page load: use cache immediately, then refresh in background if stale
+(function() {
+  const url = document.getElementById('sheet-url').value.trim();
+  const cachedCSV = localStorage.getItem(CACHE_KEY);
+  const cachedTS  = parseInt(localStorage.getItem(CACHE_TS) || '0');
+  const age = Date.now() - cachedTS;
+  const ageStr = age < 60000 ? 'just now'
+    : age < 3600000 ? `${Math.floor(age/60000)}m ago`
+    : `${Math.floor(age/3600000)}h ago`;
+
+  if (cachedCSV) {
+    // Render cache immediately
+    try {
+      const rows = parseCSV(cachedCSV);
+      const {rows: rowCount, maxDate} = processAndRender(rows);
+      const dateStr = maxDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+      if (age < CACHE_TTL) {
+        // Cache is fresh — show it and don't refetch
+        setStatus('ok', `✓ ${rowCount.toLocaleString()} rows · data through ${dateStr} · cached ${ageStr}`);
+        return;
+      } else {
+        // Cache is stale — show it but silently refresh
+        setStatus('', `Cached data from ${ageStr} · refreshing…`);
+      }
+    } catch(e) {
+      console.warn('Cache render failed, fetching fresh…', e);
+    }
+  }
+
+  // Fetch fresh (either no cache or stale)
+  if (!url) return;
+  fetchFromSheet(url, true).then(rows => {
+    const {rows: rowCount, maxDate} = processAndRender(rows);
+    const dateStr = maxDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    setStatus('ok', `✓ ${rowCount.toLocaleString()} rows · data through ${dateStr} · just updated`);
+  }).catch(err => {
+    if (!cachedCSV) setStatus('err', `⚠ Fetch failed: ${err.message}`);
+    else setStatus('ok', `Showing cached data · live refresh failed`);
+    console.error(err);
+  });
+})();
+
 document.getElementById('sheet-url').addEventListener('keydown', e => {
   if (e.key === 'Enter') doRefresh();
 });
-
-// Auto-fetch on page load
-doRefresh();
 
 </script>
 </body>
