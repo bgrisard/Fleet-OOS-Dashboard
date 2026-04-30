@@ -20,6 +20,7 @@
   --med:    #6366F1;  --med-l:   #EEF2FF;  --med-m:   #A5B4FC;
   --mini:   #10B981;  --mini-l:  #ECFDF5;  --mini-m:  #6EE7B7;
   --otr:    #F59E0B;  --otr-l:   #FFFBEB;  --otr-m:   #FCD34D;
+  --mvm:    #EC4899;  --mvm-l:   #FDF2F8;  --mvm-m:   #F9A8D4;
   --all:    #334155;  --all-l:   #F1F5F9;  --all-m:   #94A3B8;
 
   --y2024:  #6366F1;
@@ -54,6 +55,7 @@ main{max-width:1360px;margin:0 auto;padding:32px 52px}
 .fbtn.active[data-fleet="MED"]  {background:var(--med)}
 .fbtn.active[data-fleet="MINI"] {background:var(--mini)}
 .fbtn.active[data-fleet="OTR"]  {background:var(--otr)}
+.fbtn.active[data-fleet="MVM"]  {background:var(--mvm)}
 .fbtn.active[data-year="ALL"] {background:var(--yall)}
 .fbtn.active[data-year="2024"]{background:var(--y2024)}
 .fbtn.active[data-year="2025"]{background:var(--y2025)}
@@ -167,7 +169,7 @@ tfoot td:first-child{font-family:'Inter',sans-serif}
     <div class="hsub" id="data-range-label">Jan 2024 – Mar 2026 &nbsp;·&nbsp; OOS &amp; BSAccident &nbsp;·&nbsp; Excl. OTHER</div>
   </div>
     <div class="hmeta">
-    <div>Fleets: <strong>LOCAL · MED · MINI · OTR</strong></div>
+    <div>Fleets: <strong>LOCAL · MED · MINI · OTR · MVM</strong></div>
     <div>TTM = trailing 12-month rolling sum / avg</div>
   </div>
 </header>
@@ -182,6 +184,7 @@ tfoot td:first-child{font-family:'Inter',sans-serif}
       <button class="fbtn" data-fleet="MED">Med</button>
       <button class="fbtn" data-fleet="MINI">Mini</button>
       <button class="fbtn" data-fleet="OTR">OTR</button>
+      <button class="fbtn" data-fleet="MVM">MVM</button>
     </div>
     <div class="filter-group">
       <span class="flabel">Year</span>
@@ -281,8 +284,8 @@ tfoot td:first-child{font-family:'Inter',sans-serif}
 </div>
 
 <script>
-// ── Fleet lookup (from fleet.xlsx) ────────────────────────────────────
-const FLEET_MAP = {"3200":"LOCAL","5203":"LOCAL","6151":"LOCAL","6152":"LOCAL","6153":"LOCAL","6166":"LOCAL","6202":"LOCAL","7148":"RTA","7150":"LOCAL","7224":"RTA","7228":"LOCAL","8144":"LOCAL","8145":"LOCAL","9146":"LOCAL","9147":"LOCAL","10226":"RTA","11219":"LOCAL","11220":"LOCAL","11221":"LOCAL","11223":"RTA","11225":"RTA","11227":"RTA","12165":"LOCAL","16154":"MED","16155":"MED","16156":"MED","16157":"MED","16158":"MED","16159":"MED","17201":"MED","17204":"MED","17205":"MED","17206":"MED","17207":"MED","17208":"MED","17209":"MED","18210":"MED","18211":"MED","18212":"MED","18213":"MED","18231":"MED","18232":"MED","19214":"OTR","19215":"OTR","19216":"OTR","19217":"OTR","19218":"OTR","24229":"OTR","24230":"OTR","25233":"OTR","25234":"OTR","25235":"OTR","25236":"OTR","25237":"OTR","25238":"OTR","25239":"OTR","25240":"OTR","25241":"OTR","26242":"OTR","26243":"OTR","26244":"OTR","26245":"OTR","17317":"MINI","17318":"MINI","17319":"MINI","17320":"MINI","19321":"MINI","19322":"MINI"};
+// ── Fleet lookup (from Fleet_Assignments_04_30_26.xlsx — April 2026) ──
+const FLEET_MAP = {"3200":"LOCAL","5203":"LOCAL","6151":"LOCAL","6152":"LOCAL","6153":"LOCAL","6166":"LOCAL","6202":"LOCAL","7148":"RTA","7150":"LOCAL","7224":"RTA","7228":"LOCAL","8144":"LOCAL","8145":"LOCAL","9146":"LOCAL","9147":"LOCAL","10226":"RTA","11219":"LOCAL","11220":"LOCAL","11221":"LOCAL","11223":"LOCAL","11225":"LOCAL","11227":"LOCAL","12165":"LOCAL","16154":"MED","16155":"MED","16156":"MED","16157":"MED","16158":"MED","16159":"MED","17201":"MED","17204":"MED","17205":"MED","17206":"MED","17207":"MED","17208":"MED","17209":"MED","18210":"MED","18211":"MED","18212":"MED","18213":"MED","18231":"MED","18232":"MED","19214":"OTR","19215":"OTR","19216":"OTR","19217":"OTR","19218":"OTR","24229":"OTR","24230":"OTR","25233":"OTR","25234":"OTR","25235":"OTR","25236":"OTR","25237":"OTR","25238":"OTR","25239":"OTR","25240":"OTR","25241":"OTR","26242":"OTR","26243":"OTR","26244":"OTR","26245":"OTR","17317":"MINI","17318":"MINI","17319":"MINI","17320":"MINI","19321":"MINI","19322":"MINI","10302":"MVM","10307":"MVM","11306":"MVM","11308":"MVM","11309":"MVM","11310":"MVM","13311":"MVM","14312":"MVM","16300":"MVM","16313":"MVM","16314":"MVM","16315":"MVM","16316":"MVM","713":"RTA","714":"RTA","715":"RTA","717":"RTA","718":"RTA","719":"RTA","720":"RTA","721":"RTA","722":"RTA","723":"RTA","17160":"RTA","17161":"RTA","17162":"RTA","17163":"RTA","17164":"RTA"};
 
 // ── Embedded data (updated from Vehicle_Log.csv) ──────────────────────
 let VEHICLE_EVENTS = [{"id":"7224","fleet":"RTA","start":"2026-02-25","end":"2026-03-02"},{"id":"6166","fleet":"LOCAL","start":"2026-02-02","end":"2026-03-02"},{"id":"8145","fleet":"LOCAL","start":"2026-03-02","end":"2026-03-02"},{"id":"17207","fleet":"MED","start":"2026-02-26","end":"2026-03-02"},{"id":"19215","fleet":"OTR","start":"2026-03-02","end":"2026-03-02"},{"id":"17204","fleet":"MED","start":"2026-03-01","end":"2026-03-02"},{"id":"25240","fleet":"OTR","start":"2026-02-19","end":"2026-02-27"},{"id":"18213","fleet":"MED","start":"2026-02-24","end":"2026-02-25"},{"id":"18231","fleet":"MED","start":"2026-02-24","end":"2026-02-25"},{"id":"18210","fleet":"MED","start":"2026-01-21","end":"2026-02-18"},{"id":"19217","fleet":"OTR","start":"2026-02-16","end":"2026-02-18"},{"id":"19218","fleet":"OTR","start":"2026-02-13","end":"2026-02-17"},{"id":"26244","fleet":"OTR","start":"2026-02-14","end":"2026-02-16"},{"id":"11227","fleet":"RTA","start":"2026-02-09","end":"2026-02-13"},{"id":"25233","fleet":"OTR","start":"2026-02-09","end":"2026-02-11"},{"id":"18211","fleet":"MED","start":"2026-02-05","end":"2026-02-05"},{"id":"11225","fleet":"RTA","start":"2025-12-30","end":"2026-02-02"},{"id":"6151","fleet":"LOCAL","start":"2026-01-16","end":"2026-01-21"},{"id":"19214","fleet":"OTR","start":"2026-01-19","end":"2026-01-21"},{"id":"16157","fleet":"MED","start":"2026-01-16","end":"2026-01-19"},{"id":"11219","fleet":"LOCAL","start":"2026-01-01","end":"2026-01-16"},{"id":"25239","fleet":"OTR","start":"2026-01-12","end":"2026-01-15"},{"id":"16158","fleet":"MED","start":"2026-01-05","end":"2026-01-09"},{"id":"24230","fleet":"OTR","start":"2025-12-30","end":"2026-01-07"},{"id":"17319","fleet":"MINI","start":"2025-12-15","end":"2026-01-07"},{"id":"25237","fleet":"OTR","start":"2026-01-05","end":"2026-01-05"},{"id":"16155","fleet":"MED","start":"2025-12-29","end":"2026-01-02"},{"id":"17209","fleet":"MED","start":"2025-12-09","end":"2025-12-12"},{"id":"17201","fleet":"MED","start":"2025-11-15","end":"2025-12-05"},{"id":"16154","fleet":"MED","start":"2025-11-24","end":"2025-11-25"},{"id":"6153","fleet":"LOCAL","start":"2025-11-24","end":"2025-11-24"},{"id":"16156","fleet":"MED","start":"2025-11-17","end":"2025-11-24"},{"id":"24229","fleet":"OTR","start":"2025-11-07","end":"2025-11-13"},{"id":"9146","fleet":"LOCAL","start":"2025-11-06","end":"2025-11-12"},{"id":"25241","fleet":"OTR","start":"2025-11-12","end":"2025-11-12"},{"id":"17206","fleet":"MED","start":"2025-11-10","end":"2025-11-12"},{"id":"8144","fleet":"LOCAL","start":"2025-11-05","end":"2025-11-07"},{"id":"11220","fleet":"LOCAL","start":"2025-10-27","end":"2025-10-30"},{"id":"17205","fleet":"MED","start":"2025-10-21","end":"2025-10-23"},{"id":"17318","fleet":"MINI","start":"2025-09-30","end":"2025-10-02"},{"id":"18232","fleet":"MED","start":"2025-09-29","end":"2025-10-02"},{"id":"16159","fleet":"MED","start":"2025-09-30","end":"2025-10-02"},{"id":"17208","fleet":"MED","start":"2025-09-07","end":"2025-09-29"},{"id":"25234","fleet":"OTR","start":"2025-09-08","end":"2025-09-08"},{"id":"9147","fleet":"LOCAL","start":"2025-08-18","end":"2025-09-07"},{"id":"7150","fleet":"LOCAL","start":"2025-09-03","end":"2025-09-04"},{"id":"25238","fleet":"OTR","start":"2025-08-18","end":"2025-08-18"},{"id":"25236","fleet":"OTR","start":"2025-08-12","end":"2025-08-17"},{"id":"11221","fleet":"LOCAL","start":"2025-07-30","end":"2025-08-07"},{"id":"19322","fleet":"MINI","start":"2025-07-15","end":"2025-07-15"},{"id":"18212","fleet":"MED","start":"2025-06-19","end":"2025-06-19"},{"id":"6152","fleet":"LOCAL","start":"2025-06-13","end":"2025-06-16"},{"id":"25235","fleet":"OTR","start":"2025-06-04","end":"2025-06-05"},{"id":"11223","fleet":"RTA","start":"2025-05-28","end":"2025-05-30"},{"id":"19216","fleet":"OTR","start":"2025-05-27","end":"2025-05-29"},{"id":"10226","fleet":"RTA","start":"2025-02-22","end":"2025-04-14"},{"id":"17320","fleet":"MINI","start":"2024-11-07","end":"2024-11-08"},{"id":"17317","fleet":"MINI","start":"2024-10-22","end":"2024-10-22"},{"id":"7148","fleet":"RTA","start":"2024-09-09","end":"2024-09-23"},{"id":"19321","fleet":"MINI","start":"2024-08-16","end":"2024-08-18"}];
@@ -293,9 +296,9 @@ const TODAY = new Date(); TODAY.setHours(0,0,0,0);
 const REF_DATE = TODAY <= DATA_MAX_DATE ? TODAY : DATA_MAX_DATE;
 
 // ── Color maps ────────────────────────────────────────────────────────
-const FC  = {ALL:'#334155',LOCAL:'#EF4444',MED:'#6366F1',MINI:'#10B981',OTR:'#F59E0B'};
-const FBG = {ALL:'#F1F5F9',LOCAL:'#FEF2F2',MED:'#EEF2FF',MINI:'#ECFDF5',OTR:'#FFFBEB'};
-const FN  = {ALL:'All Fleets',LOCAL:'Local',MED:'Med',MINI:'Mini',OTR:'OTR'};
+const FC  = {ALL:'#334155',LOCAL:'#EF4444',MED:'#6366F1',MINI:'#10B981',OTR:'#F59E0B',MVM:'#EC4899'};
+const FBG = {ALL:'#F1F5F9',LOCAL:'#FEF2F2',MED:'#EEF2FF',MINI:'#ECFDF5',OTR:'#FFFBEB',MVM:'#FDF2F8'};
+const FN  = {ALL:'All Fleets',LOCAL:'Local',MED:'Med',MINI:'Mini',OTR:'OTR',MVM:'MVM'};
 const YC  = {ALL:'#334155','2024':'#6366F1','2025':'#06B6D4','2026':'#F97316'};
 
 // ── Utility ───────────────────────────────────────────────────────────
