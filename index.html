@@ -319,7 +319,7 @@ function getSeverityClass(days) {
 function renderOOS() {
   const refLabel = REF_DATE.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
   document.getElementById('oos-ref-date').textContent = `As of ${refLabel}`;
-  const CUTOFF = new Date(REF_DATE); CUTOFF.setDate(CUTOFF.getDate()-1);
+  const CUTOFF = new Date(REF_DATE);
   const current = VEHICLE_EVENTS
     .map(v => ({...v, endDate:parseDate(v.end), startDate:parseDate(v.start), daysOOS:daysBetween(parseDate(v.start),REF_DATE)+1}))
     .filter(v => v.endDate >= CUTOFF)
